@@ -9,15 +9,9 @@ import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-try:
-    from .beauty_pipeline import BeautyPipeline
-    from .config import get_settings
-    from .models import BeautyConfig, BeautyResponse, FaceAnalysisResponse
-except ImportError:
-    # Fallback for running directly from backend directory
-    from beauty_pipeline import BeautyPipeline
-    from config import get_settings
-    from models import BeautyConfig, BeautyResponse, FaceAnalysisResponse
+from .beauty_pipeline import BeautyPipeline
+from .config import get_settings
+from .models import BeautyConfig, BeautyResponse, FaceAnalysisResponse, SkinBrightenResponse
 
 logger = logging.getLogger(__name__)
 
@@ -73,4 +67,38 @@ async def apply_beauty(
     processed, meta = pipeline.apply(img, config)
     data_url = pipeline.encode_image(processed)
     return BeautyResponse(image=data_url, faceMeta=meta)
+
+
+@app.post("/api/beauty/brighten-skin", response_model=SkinBrightenResponse)
+async def brighten_skin(
+    image: UploadFile = File(...),
+    whiten: float = Form(50, ge=0, le=100),
+    preserveTexture: bool = Form(True),
+    adaptiveMode: bool = Form(True),
+) -> SkinBrightenResponse:
+    """
+    Endpoint chuyên dụng cho tính năng Sáng da nâng cao.
+    Sử dụng thuật toán Frequency Separation và Adaptive Brightening để sáng hóa da tự nhiên.
+    
+    Args:
+        image: Ảnh đầu vào
+        whiten: Độ sáng da (0-100)
+        preserveTexture: Giữ nguyên kết cấu da
+        adaptiveMode: Chế độ sáng hóa thích ứng (sáng hóa vùng tối nhiều hơn)
+    
+    Returns:
+        SkinBrightenResponse với ảnh đã xử lý
+    """
+    img = _load_image(image)
+    
+    # Tạo config chỉ với whiten
+    from .models import SkinValues, BeautyConfig
+    skin_values = SkinValues(whiten=whiten)
+    config = BeautyConfig(skinValues=skin_values)
+    
+    # Áp dụng xử lý
+    processed, meta = pipeline.apply(img, config)
+    data_url = pipeline.encode_image(processed)
+    
+    return SkinBrightenResponse(image=data_url, faceMeta=meta)
 

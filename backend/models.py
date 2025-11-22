@@ -1,97 +1,118 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 
 class PointModel(BaseModel):
-    """Point coordinates as percentage (0-100)."""
-    x: float = Field(..., ge=0, le=100, description="X coordinate as percentage")
-    y: float = Field(..., ge=0, le=100, description="Y coordinate as percentage")
+    x: float = Field(ge=0, le=100)
+    y: float = Field(ge=0, le=100)
 
 
 class SkinValues(BaseModel):
-    smooth: int = Field(default=0, ge=0, le=100)
-    whiten: int = Field(default=0, ge=0, le=100)
-    even: int = Field(default=0, ge=0, le=100)
-    korean: int = Field(default=0, ge=0, le=100)
-    texture: int = Field(default=0, ge=0, le=100)
+    smooth: float = 0
+    whiten: float = 0
+    even: float = 0
+    korean: float = 0
+    texture: float = 50
 
 
 class AcneMode(BaseModel):
-    auto: bool = Field(default=False, description="Auto AI Acne Removal")
-    manualPoints: List[PointModel] = Field(default_factory=list, description="List of clicks for manual removal")
+    auto: bool = False
+    manualPoints: List[PointModel] = Field(default_factory=list)
 
 
 class FaceValues(BaseModel):
-    slim: int = Field(default=0, ge=0, le=100)
-    vline: int = Field(default=0, ge=0, le=100)
-    chinShrink: int = Field(default=0, ge=0, le=100)
-    forehead: int = Field(default=0, ge=0, le=100)
-    jaw: int = Field(default=0, ge=0, le=100)
-    noseSlim: int = Field(default=0, ge=0, le=100)
-    noseBridge: int = Field(default=0, ge=0, le=100)
+    slim: float = 0
+    vline: float = 0
+    chinShrink: float = 0
+    forehead: float = 0
+    jaw: float = 0
+    noseSlim: float = 0
+    noseBridge: float = 0
 
 
 class EyeValues(BaseModel):
-    enlarge: int = Field(default=0, ge=0, le=100)
-    brightness: int = Field(default=0, ge=0, le=100)
-    darkCircle: int = Field(default=0, ge=0, le=100)
-    depth: int = Field(default=0, ge=0, le=100)
-    eyelid: int = Field(default=0, ge=0, le=100)
+    enlarge: float = 0
+    brightness: float = 0
+    darkCircle: float = 0
+    depth: float = 0
+    eyelid: float = 0
 
 
 class EyeMakeup(BaseModel):
-    eyeliner: bool = Field(default=False)
-    lens: str = Field(default="none", description="Lens color: none, blue, green, brown, etc.")
+    eyeliner: bool = False
+    lens: Literal[
+        "none",
+        "natural_brown",
+        "cool_brown",
+        "gray",
+        "smoky_blue",
+    ] = "none"
 
 
 class MouthValues(BaseModel):
-    smile: int = Field(default=0, ge=0, le=100)
+    smile: float = 0
+    volume: float = 0
+    heart: float = 0
+    teethWhiten: float = 0
 
 
 class HairValues(BaseModel):
-    smooth: int = Field(default=0, ge=0, le=100)
-    volume: int = Field(default=0, ge=0, le=100)
-    shine: int = Field(default=0, ge=0, le=100)
+    smooth: float = 0
+    volume: float = 0
+    shine: float = 0
 
 
 class BeautyConfig(BaseModel):
-    """Configuration for beauty enhancement pipeline."""
-    skinMode: Literal["natural", "strong"] = Field(default="natural")
-    faceMode: Literal["natural"] = Field(default="natural")
-    
-    skinValues: SkinValues = Field(default_factory=SkinValues)
-    acneMode: AcneMode = Field(default_factory=AcneMode)
-    faceValues: FaceValues = Field(default_factory=FaceValues)
-    eyeValues: EyeValues = Field(default_factory=EyeValues)
-    eyeMakeup: EyeMakeup = Field(default_factory=EyeMakeup)
-    mouthValues: MouthValues = Field(default_factory=MouthValues)
-    lipstick: str = Field(default="none", description="Lipstick color: none, red, pink, coral, etc.")
-    hairValues: HairValues = Field(default_factory=HairValues)
-    hairColor: str = Field(default="none", description="Hair color: none, black, brown, blonde, etc.")
+    skinMode: Literal["natural", "strong"] = "natural"
+    faceMode: Literal["natural"] = "natural"
+    skinValues: SkinValues = SkinValues()
+    acneMode: AcneMode = AcneMode()
+    faceValues: FaceValues = FaceValues()
+    eyeValues: EyeValues = EyeValues()
+    eyeMakeup: EyeMakeup = EyeMakeup()
+    mouthValues: MouthValues = MouthValues()
+    lipstick: Literal[
+        "none",
+        "nude_pink",
+        "earthy_pink",
+        "cherry_red",
+        "wine_red",
+        "coral",
+    ] = "none"
+    hairValues: HairValues = HairValues()
+    hairColor: Literal["original"] = "original"
 
 
-class LandmarkPoint(BaseModel):
+class FaceLandmark(BaseModel):
     x: float
     y: float
 
 
 class FaceMeta(BaseModel):
-    """Face detection metadata."""
-    bbox: List[int] = Field(..., description="Bounding box [x, y, width, height]")
-    confidence: float = Field(..., ge=0, le=1)
-    landmarks: List[LandmarkPoint] = Field(..., description="468 face landmarks")
+    bbox: Optional[List[int]] = None  # [x, y, w, h]
+    confidence: Optional[float] = None
+    landmarks: Optional[List[FaceLandmark]] = None
 
 
 class BeautyResponse(BaseModel):
-    """Response from beauty enhancement."""
-    image: str = Field(..., description="Base64 encoded image data URL")
-    faceMeta: Optional[FaceMeta] = Field(default=None, description="Face detection metadata")
+    image: str
+    faceMeta: Optional[FaceMeta] = None
 
 
 class FaceAnalysisResponse(BaseModel):
-    """Response from face analysis."""
-    faceMeta: Optional[FaceMeta] = Field(default=None, description="Face detection metadata")
+    faceMeta: Optional[FaceMeta] = None
+
+
+class SkinBrightenRequest(BaseModel):
+    whiten: float = Field(ge=0, le=100, description="Độ sáng da từ 0-100")
+    preserveTexture: bool = Field(default=True, description="Giữ nguyên kết cấu da")
+    adaptiveMode: bool = Field(default=True, description="Chế độ sáng hóa thích ứng")
+
+
+class SkinBrightenResponse(BaseModel):
+    image: str
+    faceMeta: Optional[FaceMeta] = None
 

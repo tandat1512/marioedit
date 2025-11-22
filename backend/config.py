@@ -4,35 +4,30 @@ import os
 from functools import lru_cache
 from typing import List
 
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel, Field
 
 
-class Settings(BaseSettings):
-    """Application settings."""
-    
-    allowed_origins: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ]
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Đọc ALLOWED_ORIGINS từ environment variable (cho production)
-        # Format: "https://domain1.com,https://domain2.com"
-        env_origins = os.getenv("ALLOWED_ORIGINS")
-        if env_origins:
-            origins = [origin.strip() for origin in env_origins.split(",") if origin.strip()]
-            self.allowed_origins.extend(origins)
+class Settings(BaseModel):
+    debug: bool = Field(default=os.getenv("BEAUTY_DEBUG", "0") == "1")
+    allowed_origins: List[str] = Field(
+        default_factory=lambda: [
+            origin.strip()
+            for origin in os.getenv("BEAUTY_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000").split(",")
+            if origin.strip()
+        ]
+    )
+    vertex_project_id: str | None = Field(default=os.getenv("VERTEX_PROJECT_ID"))
+    vertex_location: str = Field(default=os.getenv("VERTEX_LOCATION", "asia-southeast1"))
+    vertex_model_name: str = Field(default=os.getenv("VERTEX_MODEL_NAME", "gemini-1.5-pro-preview-0514"))
+    vertex_enabled: bool = Field(
+        default=os.getenv("VERTEX_ENABLED", "auto").lower() in {"1", "true", "auto"}
+    )
+    gemini_api_key: str | None = Field(default=os.getenv("GEMINI_API_KEY"))
+    gemini_model_name: str = Field(default=os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash"))
+    ai_pro_timeout: float = Field(default=float(os.getenv("AI_PRO_TIMEOUT", "30")))
 
 
-@lru_cache()
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Get cached settings instance."""
     return Settings()
 

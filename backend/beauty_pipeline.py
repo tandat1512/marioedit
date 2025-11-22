@@ -10,11 +10,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-try:
-    from .models import BeautyConfig, FaceMeta, MouthValues, PointModel
-except ImportError:
-    # Fallback for running directly from backend directory
-    from models import BeautyConfig, FaceMeta, MouthValues, PointModel
+from .models import BeautyConfig, FaceMeta, MouthValues, PointModel
 
 mp_face_mesh = mp.solutions.face_mesh
 _FACE_LOCK = threading.Lock()
@@ -1133,15 +1129,54 @@ def _apply_skin_pipeline(image: np.ndarray, analysis: Optional[FaceAnalysis], co
         lab = cv2.cvtColor(result, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
 
-        # Whitening giữ nguyên behaviour cũ
+        # Cải thiện thuật toán Sáng da với Frequency Separation và Adaptive Brightening
         if skin.whiten > 0:
-            l = cv2.normalize(
-                l,
-                None,
-                alpha=0,
-                beta=255 + skin.whiten * 0.8,
-                norm_type=cv2.NORM_MINMAX,
+            whiten_strength = _ease_strength(skin.whiten, power=1.15)
+            
+            # Frequency Separation: Tách ảnh thành low-frequency (màu sắc) và high-frequency (chi tiết)
+            sigma = 3.0 + 2.0 * whiten_strength
+            low_freq = cv2.GaussianBlur(l.astype(np.float32), (0, 0), sigmaX=sigma)
+            high_freq = l.astype(np.float32) - low_freq
+            
+            # Adaptive brightening: Sáng hóa dựa trên độ sáng hiện tại
+            # Vùng tối được sáng hóa nhiều hơn, vùng sáng ít hơn để tránh overexposure
+            l_normalized = low_freq / 255.0
+            
+            # Curve adjustment: Sử dụng S-curve để tăng độ sáng tự nhiên
+            # Tăng độ sáng vùng tối-trung bình nhiều hơn, vùng sáng ít hơn
+            boost_map = np.power(l_normalized, 0.7) * (1.0 + whiten_strength * 0.6)
+            boost_map = np.clip(boost_map, 0.0, 1.0)
+            
+            # Áp dụng boost với falloff mượt
+            brightened_low = low_freq + (255.0 - low_freq) * boost_map * whiten_strength * 0.45
+            
+            # CLAHE để tăng độ tương phản cục bộ cho vùng da
+            clahe = cv2.createCLAHE(
+                clipLimit=1.5 + whiten_strength * 1.2,
+                tileGridSize=(8, 8)
             )
+            brightened_low = clahe.apply(np.clip(brightened_low, 0, 255).astype(np.uint8))
+            
+            # Kết hợp lại với high-frequency để giữ chi tiết
+            l = np.clip(brightened_low.astype(np.float32) + high_freq, 0, 255).astype(np.uint8)
+            
+            # Điều chỉnh sắc độ a/b để da trông tự nhiên hơn (giảm đỏ, tăng vàng nhẹ)
+            if whiten_strength > 0.3:
+                # Giảm đỏ (giảm a channel)
+                a_adj = a.astype(np.float32)
+                a_adj[mask > 0] = np.clip(
+                    a_adj[mask > 0] - whiten_strength * 8.0 * (a_adj[mask > 0] - 128) / 128.0,
+                    0, 255
+                )
+                a = a_adj.astype(np.uint8)
+                
+                # Tăng vàng nhẹ (tăng b channel)
+                b_adj = b.astype(np.float32)
+                b_adj[mask > 0] = np.clip(
+                    b_adj[mask > 0] + whiten_strength * 4.0 * (1.0 - (b_adj[mask > 0] - 128) / 128.0),
+                    0, 255
+                )
+                b = b_adj.astype(np.uint8)
 
         # Đều màu da: tăng độ nhạy theo slider thay vì gần như 1 mức
         if skin.even > 0:

@@ -122,15 +122,29 @@ Nếu cần thêm origin khác, chỉnh sửa file backend/config.py
 SỬ DỤNG
 -------
 1. Khởi động backend trước:
-   uvicorn backend.main:app --reload
+   cd backend
+   uvicorn main:app --reload --port 8000
+   
+   Hoặc từ thư mục gốc:
+   uvicorn backend.main:app --reload --port 8000
 
 2. Khởi động frontend:
    npm run dev
 
-3. Mở trình duyệt và truy cập:
-   http://localhost:5173
+3. Cấu hình API URL (tùy chọn):
+   Tạo file .env.local trong thư mục gốc:
+   VITE_API_BASE_URL=http://localhost:8000
+   
+   Nếu không có file .env.local, frontend sẽ mặc định sử dụng:
+   http://localhost:8000
 
-4. Upload ảnh và sử dụng các công cụ làm đẹp
+4. Mở trình duyệt và truy cập:
+   http://localhost:3000 (hoặc port mà Vite hiển thị)
+
+5. Upload ảnh và sử dụng các công cụ làm đẹp
+   
+   Lưu ý: Frontend sẽ tự động kiểm tra backend có sẵn sàng không.
+   Nếu backend không khả dụng, frontend sẽ fallback về xử lý client-side.
 
 GHI CHÚ
 -------

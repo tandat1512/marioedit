@@ -212,195 +212,255 @@ export const runAiProModule = async (
             }
 
         } else if (moduleId === 'ai_beauty_full') {
-            // AI Tự chỉnh toàn diện - Comprehensive automatic enhancement
-            const fullBeautySchema: Schema = {
+            // Tự chỉnh toàn diện - Chuyên nghiệp: Cân bằng ánh sáng, màu sắc, độ nét cho TOÀN BỘ ẢNH
+            // Phù hợp: Phong cảnh, sản phẩm, kiến trúc, chân dung, mọi loại ảnh
+            const adjustmentSchema: Schema = {
                 type: Type.OBJECT,
                 properties: {
-                    // Basic adjustments
-                    exposure: { type: Type.INTEGER, description: "Exposure adjustment (-100 to 100)" },
-                    contrast: { type: Type.INTEGER, description: "Contrast adjustment (-100 to 100)" },
-                    highlights: { type: Type.INTEGER, description: "Highlights adjustment (-100 to 100)" },
-                    shadows: { type: Type.INTEGER, description: "Shadows adjustment (-100 to 100)" },
-                    vibrance: { type: Type.INTEGER, description: "Vibrance adjustment (-100 to 100)" },
-                    saturation: { type: Type.INTEGER, description: "Saturation adjustment (-100 to 100)" },
-                    clarity: { type: Type.INTEGER, description: "Clarity/sharpness adjustment (-100 to 100)" },
-                    temp: { type: Type.INTEGER, description: "Color temperature (-100 to 100)" },
-                    // Beauty adjustments
-                    skinSmooth: { type: Type.INTEGER, description: "Skin smoothing (0 to 100)" },
-                    skinWhiten: { type: Type.INTEGER, description: "Skin whitening (0 to 100)" },
-                    skinEven: { type: Type.INTEGER, description: "Skin tone evenness (0 to 100)" },
-                    eyeBrightness: { type: Type.INTEGER, description: "Eye brightness enhancement (0 to 100)" },
-                    eyeDarkCircle: { type: Type.INTEGER, description: "Dark circle reduction (0 to 100)" }
+                    exposure: { type: Type.INTEGER, description: "Exposure correction (-80 to 80). Analyze histogram and correct overall brightness for optimal exposure." },
+                    contrast: { type: Type.INTEGER, description: "Contrast enhancement (-50 to 50). Add depth and dimension while maintaining natural look." },
+                    highlights: { type: Type.INTEGER, description: "Highlights recovery (-80 to 0). Recover blown highlights and preserve detail in bright areas." },
+                    shadows: { type: Type.INTEGER, description: "Shadows lift (0 to 80). Lift dark areas to reveal hidden details without creating artificial look." },
+                    whites: { type: Type.INTEGER, description: "Whites adjustment (-50 to 50). Fine-tune brightest points for proper white balance." },
+                    blacks: { type: Type.INTEGER, description: "Blacks adjustment (-50 to 50). Fine-tune darkest points for proper black point." },
+                    saturation: { type: Type.INTEGER, description: "Saturation adjustment (-30 to 30). Subtle color enhancement, avoid oversaturation." },
+                    vibrance: { type: Type.INTEGER, description: "Vibrance boost (0 to 40). Enhance muted colors while protecting already vibrant areas." },
+                    temp: { type: Type.INTEGER, description: "Color temperature (-40 to 40). Correct white balance for natural, accurate colors." },
+                    tint: { type: Type.INTEGER, description: "Tint correction (-30 to 30). Remove color cast (green/magenta) for neutral appearance." },
+                    clarity: { type: Type.INTEGER, description: "Clarity enhancement (0 to 50). Enhance mid-tone contrast and local detail definition." },
+                    dehaze: { type: Type.INTEGER, description: "Dehaze (0 to 60). Remove atmospheric haze and improve overall clarity." },
+                    denoise: { type: Type.INTEGER, description: "Noise reduction (0 to 40). Reduce digital noise while preserving detail." }
                 },
-                required: ["exposure", "contrast", "vibrance", "clarity", "skinSmooth", "skinWhiten", "skinEven"]
+                required: ["exposure", "contrast", "highlights", "shadows", "vibrance", "clarity"]
             };
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
-                        { text: "You are a professional photo editor AI. Analyze this image and provide comprehensive automatic enhancements.\n\nTASK: 'Tự chỉnh toàn diện' (Full Auto Enhancement)\n\nAnalyze the image for:\n1. Lighting issues (over/under exposure, contrast problems)\n2. Color balance (temperature, saturation, vibrance)\n3. Image sharpness and clarity\n4. Skin quality (if portrait detected)\n5. Eye appearance (if face detected)\n\nProvide balanced adjustments that improve overall image quality while maintaining natural look. Be conservative - aim for subtle improvements rather than dramatic changes.\n\nReturn JSON with integer values. For beauty parameters, only apply if human faces are clearly visible." },
+                        { text: `You are a master photo editor with 20+ years of experience. Your task is to perform PROFESSIONAL, BALANCED, and HARMONIOUS image correction for the ENTIRE image (not just faces).
+
+ANALYSIS APPROACH:
+1. Examine the image type: landscape, portrait, product, architecture, street, etc.
+2. Analyze histogram: Check for proper exposure distribution
+3. Assess color balance: Look for color casts, white balance issues
+4. Evaluate dynamic range: Check if highlights are blown or shadows are crushed
+5. Check sharpness: Assess overall image clarity and detail
+
+PROFESSIONAL CORRECTION PRINCIPLES:
+- EXPOSURE: Aim for balanced histogram, avoid clipping. If image is well-exposed, make minimal changes (0-10)
+- CONTRAST: Enhance depth subtly. For flat images, add 15-25. For already contrasty images, reduce 5-15
+- HIGHLIGHTS: Always recover if blown (-30 to -60). If not blown, minimal adjustment (-10 to 0)
+- SHADOWS: Lift crushed shadows (20-50). If shadows are fine, minimal lift (0-15)
+- COLOR: Use vibrance (10-30) more than saturation (0-15) to protect skin tones and avoid oversaturation
+- TEMPERATURE: Correct white balance naturally. Only adjust if there's clear color cast (-20 to 20)
+- CLARITY: Moderate enhancement (15-35). Higher for soft images, lower for already sharp images
+- DEHAZE: Apply if atmospheric haze is present (20-50), otherwise 0-10
+
+QUALITY STANDARDS:
+- Results must look NATURAL and PROFESSIONAL, not over-processed
+- Preserve original mood and atmosphere
+- Maintain color accuracy
+- Enhance without destroying original character
+- If image is already excellent, make minimal adjustments
+
+Return integer values only.` },
                         { inlineData: { mimeType, data: base64Data } }
                     ]
                 },
                 config: {
                     responseMimeType: "application/json",
-                    responseSchema: fullBeautySchema
+                    responseSchema: adjustmentSchema
                 }
             });
 
             const jsonText = response.text;
             if (jsonText) {
                 const adjustments = JSON.parse(jsonText);
-                const factor = intensity / 100;
                 
-                result.adjustments = {
-                    basic: {
-                        exposure: Math.round(adjustments.exposure * factor),
-                        contrast: Math.round(adjustments.contrast * factor),
-                        highlights: Math.round((adjustments.highlights || 0) * factor),
-                        shadows: Math.round((adjustments.shadows || 0) * factor),
-                        vibrance: Math.round(adjustments.vibrance * factor),
-                        saturation: Math.round((adjustments.saturation || 0) * factor),
-                        clarity: Math.round(adjustments.clarity * factor),
-                        temp: Math.round((adjustments.temp || 0) * factor)
-                    },
-                    beauty: {
-                        skinValues: {
-                            smooth: Math.round((adjustments.skinSmooth || 0) * factor),
-                            whiten: Math.round((adjustments.skinWhiten || 0) * factor),
-                            even: Math.round((adjustments.skinEven || 0) * factor),
-                            korean: 0,
-                            texture: 50
-                        },
-                        eyeValues: {
-                            enlarge: 0,
-                            brightness: Math.round((adjustments.eyeBrightness || 0) * factor),
-                            darkCircle: Math.round((adjustments.eyeDarkCircle || 0) * factor),
-                            depth: 0
-                        }
+                // Apply intensity scaling with professional dampening
+                const factor = (intensity / 100) * 0.85; // 15% dampening for professional results
+                const scaledAdjustments: Record<string, number> = {};
+                
+                Object.keys(adjustments).forEach(key => {
+                    const value = adjustments[key];
+                    if (key === 'clarity' || key === 'dehaze' || key === 'denoise') {
+                        scaledAdjustments[key] = Math.round(value * factor);
+                    } else {
+                        scaledAdjustments[key] = Math.round(value * factor);
                     }
+                });
+
+                result.adjustments = {
+                    basic: scaledAdjustments
                 };
-                result.summary = "Đã tự động điều chỉnh toàn diện: ánh sáng, màu sắc, độ nét và làm đẹp da.";
+                result.summary = "Đã tự động cân bằng ánh sáng, màu sắc và độ nét toàn diện cho toàn bộ ảnh.";
                 result.steps = [
-                    "Phân tích chất lượng ảnh tổng thể",
-                    "Cân bằng ánh sáng và độ tương phản",
-                    "Tối ưu màu sắc và độ rực rỡ",
-                    "Nâng cao độ nét và chi tiết",
-                    "Làm đẹp da và mắt (nếu phát hiện chân dung)"
+                    "Phân tích loại ảnh và histogram để xác định vấn đề",
+                    "Cân bằng exposure và dynamic range (highlights/shadows)",
+                    "Điều chỉnh màu sắc tự nhiên (vibrance, temperature, tint)",
+                    "Tăng độ nét và loại bỏ noise/haze một cách chuyên nghiệp"
                 ];
             }
 
         } else if (moduleId === 'ai_beauty_portrait') {
-            // AI Tối ưu chân dung - Portrait optimization
-            const portraitSchema: Schema = {
+            // Tối ưu chân dung - Chuyên biệt: Chỉ làm đẹp DA và ánh sáng KHUÔN MẶT
+            // KHÔNG có điều chỉnh mắt - chỉ tập trung vào da và lighting
+            const adjustmentSchema: Schema = {
                 type: Type.OBJECT,
                 properties: {
-                    // Lighting for portraits
-                    exposure: { type: Type.INTEGER, description: "Exposure for portrait lighting (-100 to 100)" },
-                    highlights: { type: Type.INTEGER, description: "Highlights to soften skin (-100 to 100)" },
-                    shadows: { type: Type.INTEGER, description: "Shadows to add depth (-100 to 100)" },
-                    // Portrait beauty
-                    skinSmooth: { type: Type.INTEGER, description: "Skin smoothing (0 to 100)" },
-                    skinWhiten: { type: Type.INTEGER, description: "Skin whitening (0 to 100)" },
-                    skinEven: { type: Type.INTEGER, description: "Skin tone evenness (0 to 100)" },
-                    skinKorean: { type: Type.INTEGER, description: "Korean glass skin effect (0 to 100)" },
-                    eyeEnlarge: { type: Type.INTEGER, description: "Eye enlargement (0 to 100)" },
-                    eyeBrightness: { type: Type.INTEGER, description: "Eye brightness (0 to 100)" },
-                    eyeDarkCircle: { type: Type.INTEGER, description: "Dark circle removal (0 to 100)" },
-                    faceSlim: { type: Type.INTEGER, description: "Face slimming (0 to 100)" },
-                    vibrance: { type: Type.INTEGER, description: "Vibrance for skin glow (-100 to 100)" }
+                    // Face lighting adjustments (subtle, only for face area)
+                    faceExposure: { type: Type.INTEGER, description: "Face exposure adjustment (-30 to 30). Slightly brighten face if needed, very subtle." },
+                    faceHighlights: { type: Type.INTEGER, description: "Face highlights (-40 to 0). Soften harsh highlights on face, recover detail." },
+                    faceShadows: { type: Type.INTEGER, description: "Face shadows lift (0 to 40). Gently lift shadows on face to reveal details." },
+                    // Skin beauty adjustments (main focus)
+                    skinSmooth: { type: Type.INTEGER, description: "Skin smoothing (20 to 70). Smooth skin texture while preserving natural pores and details. Moderate for natural look." },
+                    skinWhiten: { type: Type.INTEGER, description: "Skin brightening (5 to 35). Naturally brighten skin tone. Keep subtle for professional look." },
+                    skinEven: { type: Type.INTEGER, description: "Skin evenness (15 to 80). Even out skin tone, reduce discoloration, blemishes, and redness." },
+                    // Subtle color enhancement for portrait
+                    portraitVibrance: { type: Type.INTEGER, description: "Portrait vibrance (0 to 25). Subtle color enhancement for natural, healthy skin glow." }
                 },
-                required: ["exposure", "highlights", "shadows", "skinSmooth", "skinWhiten", "skinEven", "eyeBrightness"]
+                required: ["skinSmooth", "skinWhiten", "skinEven"]
             };
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
-                        { text: "You are a professional portrait retoucher AI. Analyze this portrait image and optimize it for beauty.\n\nTASK: 'Tối ưu chân dung' (Portrait Optimization)\n\nFocus on:\n1. Skin quality: smoothness, even tone, natural whitening\n2. Eye enhancement: brightness, dark circle removal, subtle enlargement\n3. Face shape: gentle slimming if needed\n4. Lighting: soft highlights, balanced shadows for depth\n5. Overall glow: subtle vibrance for healthy skin appearance\n\nIMPORTANT: This is for PORTRAITS only. If no clear human face is detected, return minimal adjustments. Be natural - avoid over-processing. Korean glass skin effect should be subtle.\n\nReturn JSON with integer values." },
+                        { text: `You are a professional portrait retoucher specializing in SKIN ENHANCEMENT and FACE LIGHTING. Your expertise is making skin look flawless while maintaining natural texture and character.
+
+PORTRAIT ANALYSIS:
+1. Assess skin condition: texture, tone, blemishes, discoloration
+2. Evaluate face lighting: harsh highlights, deep shadows, overall exposure
+3. Check skin color: redness, unevenness, overall tone
+4. Identify areas needing enhancement: forehead, cheeks, chin, neck
+
+PROFESSIONAL SKIN RETOUCHING PRINCIPLES:
+- SKIN SMOOTHING: Moderate level (35-55) to preserve natural texture. Higher (55-70) only if skin is very rough. Lower (20-35) if skin is already smooth.
+- SKIN WHITENING: Subtle and natural (10-25). Higher (25-35) only if skin is significantly dark. Always maintain natural skin tone.
+- SKIN EVENNESS: Focus on reducing discoloration and blemishes (30-65). Higher if there are visible blemishes/redness. Lower if skin is already even.
+- FACE LIGHTING: Very subtle adjustments. Only lift shadows (10-30) if face is too dark. Only reduce highlights (-20 to -5) if there are harsh highlights.
+- COLOR: Minimal vibrance boost (5-20) for healthy glow, avoid oversaturation
+
+QUALITY STANDARDS:
+- Skin must look NATURAL and PROFESSIONAL, not plastic or over-processed
+- Preserve skin texture and pores (especially in strong mode)
+- Maintain natural skin color and undertones
+- Face lighting should be balanced and flattering
+- Overall result: Professional magazine-quality portrait
+
+IMPORTANT: DO NOT adjust eyes. Focus ONLY on skin and face lighting.
+Return integer values only.` },
                         { inlineData: { mimeType, data: base64Data } }
                     ]
                 },
                 config: {
                     responseMimeType: "application/json",
-                    responseSchema: portraitSchema
+                    responseSchema: adjustmentSchema
                 }
             });
 
             const jsonText = response.text;
             if (jsonText) {
                 const adjustments = JSON.parse(jsonText);
-                const factor = intensity / 100;
                 
+                // Apply intensity scaling with professional dampening
+                const factor = (intensity / 100) * 0.9; // 10% dampening for natural results
+                
+                // Scale beauty values (0-100 range)
+                const beautyValues: Record<string, number> = {};
+                if (adjustments.skinSmooth !== undefined) beautyValues.smooth = Math.round(adjustments.skinSmooth * factor);
+                if (adjustments.skinWhiten !== undefined) beautyValues.whiten = Math.round(adjustments.skinWhiten * factor);
+                if (adjustments.skinEven !== undefined) beautyValues.even = Math.round(adjustments.skinEven * factor);
+
+                // Scale basic adjustments for face lighting (very subtle)
+                const basicAdjustments: Record<string, number> = {};
+                if (adjustments.faceExposure !== undefined) basicAdjustments.exposure = Math.round(adjustments.faceExposure * factor);
+                if (adjustments.faceHighlights !== undefined) basicAdjustments.highlights = Math.round(adjustments.faceHighlights * factor);
+                if (adjustments.faceShadows !== undefined) basicAdjustments.shadows = Math.round(adjustments.faceShadows * factor);
+                if (adjustments.portraitVibrance !== undefined) basicAdjustments.vibrance = Math.round(adjustments.portraitVibrance * factor);
+
                 result.adjustments = {
-                    basic: {
-                        exposure: Math.round(adjustments.exposure * factor),
-                        highlights: Math.round(adjustments.highlights * factor),
-                        shadows: Math.round(adjustments.shadows * factor),
-                        vibrance: Math.round((adjustments.vibrance || 0) * factor)
-                    },
+                    basic: basicAdjustments,
                     beauty: {
-                        skinValues: {
-                            smooth: Math.round(adjustments.skinSmooth * factor),
-                            whiten: Math.round(adjustments.skinWhiten * factor),
-                            even: Math.round(adjustments.skinEven * factor),
-                            korean: Math.round((adjustments.skinKorean || 0) * factor),
-                            texture: 50
-                        },
-                        faceValues: {
-                            slim: Math.round((adjustments.faceSlim || 0) * factor),
-                            vline: 0,
-                            chinShrink: 0,
-                            forehead: 0,
-                            jaw: 0,
-                            noseSlim: 0,
-                            noseBridge: 0
-                        },
-                        eyeValues: {
-                            enlarge: Math.round((adjustments.eyeEnlarge || 0) * factor),
-                            brightness: Math.round(adjustments.eyeBrightness * factor),
-                            darkCircle: Math.round((adjustments.eyeDarkCircle || 0) * factor),
-                            depth: 0
-                        }
+                        skinValues: beautyValues
                     }
                 };
-                result.summary = "Đã tối ưu chân dung: làm đẹp da, mắt và ánh sáng chuyên nghiệp.";
+                result.summary = "Đã tối ưu chân dung: làm đẹp da và cân bằng ánh sáng khuôn mặt chuyên nghiệp.";
                 result.steps = [
-                    "Phân tích đặc điểm khuôn mặt",
-                    "Làm mịn và đều màu da",
-                    "Tăng sáng mắt và giảm quầng thâm",
-                    "Tối ưu ánh sáng cho chân dung",
-                    "Tạo hiệu ứng da sáng mịn tự nhiên"
+                    "Phân tích tình trạng da và ánh sáng khuôn mặt",
+                    "Làm mịn da tự nhiên, giữ nguyên kết cấu da",
+                    "Làm sáng và làm đều tone màu da một cách chuyên nghiệp",
+                    "Cân bằng ánh sáng khuôn mặt để tạo vẻ đẹp tự nhiên"
                 ];
             }
 
         } else if (moduleId === 'ai_beauty_tone') {
-            // AI Smart Tone - Intelligent color tone suggestion
+            // AI Smart Tone - Sáng tạo: Phân tích và tạo phong cách màu sắc chuyên nghiệp
+            // Tập trung vào tạo mood và style thông qua color grading
             const toneSchema: Schema = {
                 type: Type.OBJECT,
                 properties: {
-                    // Color adjustments
-                    temp: { type: Type.INTEGER, description: "Color temperature (-100 cool to 100 warm)" },
-                    tint: { type: Type.INTEGER, description: "Tint adjustment (-100 green to 100 magenta)" },
-                    saturation: { type: Type.INTEGER, description: "Saturation (-100 to 100)" },
-                    vibrance: { type: Type.INTEGER, description: "Vibrance for color richness (-100 to 100)" },
-                    hue: { type: Type.INTEGER, description: "Hue shift for tone matching (-180 to 180)" },
-                    // Subtle beauty for tone enhancement
-                    skinWhiten: { type: Type.INTEGER, description: "Light skin tone adjustment (0 to 100)" },
-                    skinEven: { type: Type.INTEGER, description: "Skin tone uniformity (0 to 100)" },
-                    // Exposure for tone balance
-                    exposure: { type: Type.INTEGER, description: "Exposure for tone balance (-100 to 100)" },
-                    contrast: { type: Type.INTEGER, description: "Contrast for tone depth (-100 to 100)" }
+                    recommendedTone: { 
+                        type: Type.STRING, 
+                        description: "Creative color style: 'warm_golden', 'cool_teal', 'cinematic_drama', 'vintage_film', 'modern_clean', 'soft_dreamy', 'vibrant_energetic', 'moody_dark', 'pastel_gentle', 'monochrome_artistic'" 
+                    },
+                    temp: { type: Type.INTEGER, description: "Temperature shift (-80 to 80) to achieve the creative tone mood." },
+                    tint: { type: Type.INTEGER, description: "Tint shift (-60 to 60) for creative color direction (green/magenta)." },
+                    saturation: { type: Type.INTEGER, description: "Saturation adjustment (-50 to 50) for tone style. Negative for desaturated looks, positive for rich colors." },
+                    vibrance: { type: Type.INTEGER, description: "Vibrance boost (0 to 60) for tone richness. Higher for vibrant styles, lower for muted styles." },
+                    contrast: { type: Type.INTEGER, description: "Contrast adjustment (-40 to 60) for tone drama. Higher for cinematic, lower for soft." },
+                    highlights: { type: Type.INTEGER, description: "Highlights adjustment (-60 to 40) for tone mood. Lower for moody, higher for bright." },
+                    shadows: { type: Type.INTEGER, description: "Shadows adjustment (-40 to 60) for tone depth. Higher for lifted, lower for crushed." },
+                    clarity: { type: Type.INTEGER, description: "Clarity for tone definition (0 to 50). Higher for sharp modern, lower for soft dreamy." },
+                    explanation: { type: Type.STRING, description: "Creative explanation of the chosen tone style and its artistic intent (max 120 characters)." }
                 },
-                required: ["temp", "tint", "saturation", "vibrance", "exposure", "contrast"]
+                required: ["recommendedTone", "temp", "tint", "saturation", "vibrance", "contrast", "explanation"]
             };
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: {
                     parts: [
-                        { text: "You are a professional colorist AI. Analyze this image and suggest the best color tone.\n\nTASK: 'AI Smart Tone' (Intelligent Color Tone)\n\nAnalyze:\n1. Current color palette and mood\n2. Best matching tone style (warm, cool, neutral, vibrant, muted)\n3. Skin tone harmony (if portrait)\n4. Overall color balance\n\nSuggest adjustments that:\n- Enhance the image's natural color harmony\n- Match professional color grading styles\n- Create a cohesive, pleasing color palette\n- Subtle skin tone improvements if portrait\n\nReturn JSON with integer values. Focus on color adjustments, beauty should be minimal." },
+                        { text: `You are a CREATIVE COLORIST and FILM GRADER with expertise in artistic color styling. Your role is to analyze images and create PROFESSIONAL, CREATIVE, and HARMONIOUS color grades that enhance mood and style.
+
+CREATIVE TONE STYLES AVAILABLE:
+- 'warm_golden': Golden hour warmth, sunset glow, warm shadows (temp +30 to +60, warm shadows)
+- 'cool_teal': Modern teal/orange split, crisp cool tones (temp -30 to -60, cool highlights)
+- 'cinematic_drama': High contrast, rich colors, movie-like grading (high contrast, vibrant, dramatic shadows)
+- 'vintage_film': Retro film look, faded colors, nostalgic warmth (desaturate -15 to -30, warm temp +20 to +40)
+- 'modern_clean': Clean, vibrant, contemporary, balanced (moderate vibrance +20 to +40, balanced temp)
+- 'soft_dreamy': Gentle pastels, low contrast, dreamy atmosphere (reduce contrast -20 to -30, soft colors)
+- 'vibrant_energetic': Rich, saturated, energetic, bold colors (high saturation +25 to +45, high vibrance)
+- 'moody_dark': Dark, moody, atmospheric, crushed shadows (lower highlights -30 to -50, lower shadows -20 to -40)
+- 'pastel_gentle': Soft pastels, gentle colors, light and airy (reduce saturation -20 to -35, lift shadows +20 to +40)
+- 'monochrome_artistic': Artistic black & white or desaturated with color accent (desaturate -40 to -60, high contrast)
+
+CREATIVE ANALYSIS PROCESS:
+1. Analyze image CONTENT: portrait, landscape, urban, nature, product, etc.
+2. Assess CURRENT MOOD: bright, dark, neutral, energetic, calm, dramatic
+3. Identify COLOR PALETTE: dominant colors, color harmony, color temperature
+4. Determine ARTISTIC DIRECTION: What mood/style would enhance this image creatively?
+5. Choose the MOST SUITABLE tone that would transform this image artistically
+
+PROFESSIONAL COLOR GRADING PRINCIPLES:
+- TEMPERATURE: Shift significantly for warm/cool styles (30-60), minimal for neutral styles (0-20)
+- TINT: Use for creative color direction. Teal/orange split: tint -20 to -40. Warm vintage: tint +10 to +30
+- SATURATION: Desaturate for vintage/moody (-20 to -40). Boost for vibrant (+20 to +40). Keep moderate for natural
+- VIBRANCE: Higher for vibrant/cinematic (30-50). Lower for soft/vintage (5-20)
+- CONTRAST: High for cinematic/drama (+30 to +50). Low for soft/dreamy (-20 to -30). Moderate for clean
+- HIGHLIGHTS: Lower for moody (-30 to -50). Higher for bright/clean (+15 to +30)
+- SHADOWS: Lift for soft/pastel (+25 to +45). Crush for moody (-20 to -35). Moderate for balanced
+- CLARITY: Higher for modern/sharp (25-40). Lower for soft/dreamy (5-20)
+
+CREATIVE QUALITY STANDARDS:
+- Color grade must be ARTISTIC and PROFESSIONAL, not gimmicky
+- Enhance the image's inherent mood and character
+- Create visual harmony and balance
+- Be bold but tasteful
+- Result should look like professional film/photo color grading
+
+Return integer values only.` },
                         { inlineData: { mimeType, data: base64Data } }
                     ]
                 },
@@ -412,46 +472,51 @@ export const runAiProModule = async (
 
             const jsonText = response.text;
             if (jsonText) {
-                const adjustments = JSON.parse(jsonText);
-                const factor = intensity / 100;
+                const toneData = JSON.parse(jsonText);
                 
-                result.adjustments = {
-                    basic: {
-                        temp: Math.round(adjustments.temp * factor),
-                        tint: Math.round(adjustments.tint * factor),
-                        saturation: Math.round(adjustments.saturation * factor),
-                        vibrance: Math.round(adjustments.vibrance * factor),
-                        hue: Math.round((adjustments.hue || 0) * factor),
-                        exposure: Math.round(adjustments.exposure * factor),
-                        contrast: Math.round(adjustments.contrast * factor)
-                    },
-                    beauty: {
-                        skinValues: {
-                            smooth: 0,
-                            whiten: Math.round((adjustments.skinWhiten || 0) * factor * 0.5), // Very subtle
-                            even: Math.round((adjustments.skinEven || 0) * factor * 0.5), // Very subtle
-                            korean: 0,
-                            texture: 50
-                        }
+                // Apply intensity scaling with creative dampening
+                const factor = (intensity / 100) * 0.9; // 10% dampening for professional creative results
+                const scaledAdjustments: Record<string, number> = {};
+                
+                // Scale numeric adjustments
+                ['temp', 'tint', 'saturation', 'vibrance', 'contrast', 'highlights', 'shadows', 'clarity'].forEach(key => {
+                    if (toneData[key] !== undefined) {
+                        scaledAdjustments[key] = Math.round(toneData[key] * factor);
                     }
+                });
+
+                result.adjustments = {
+                    basic: scaledAdjustments
                 };
-                result.summary = "Đã áp dụng tone màu thông minh phù hợp với ảnh.";
+                
+                // Create creative tone description
+                const toneNames: Record<string, string> = {
+                    'warm_golden': 'Vàng ấm áp',
+                    'cool_teal': 'Xanh mát mẻ',
+                    'cinematic_drama': 'Điện ảnh kịch tính',
+                    'vintage_film': 'Phim cổ điển',
+                    'modern_clean': 'Hiện đại sạch sẽ',
+                    'soft_dreamy': 'Mơ màng nhẹ nhàng',
+                    'vibrant_energetic': 'Rực rỡ năng động',
+                    'moody_dark': 'Tối tâm trạng',
+                    'pastel_gentle': 'Pastel dịu dàng',
+                    'monochrome_artistic': 'Đơn sắc nghệ thuật'
+                };
+                
+                const toneName = toneNames[toneData.recommendedTone] || toneData.recommendedTone;
+                result.summary = `Đã áp dụng phong cách màu: ${toneName}. ${toneData.explanation || ''}`;
                 result.steps = [
-                    "Phân tích bảng màu hiện tại",
-                    "Xác định tone màu phù hợp nhất",
-                    "Điều chỉnh nhiệt độ và sắc thái màu",
-                    "Tối ưu độ bão hòa và rực rỡ",
-                    "Cân bằng tone da (nếu có chân dung)"
+                    "Phân tích nội dung, tâm trạng và bảng màu hiện tại",
+                    `Xác định phong cách màu sáng tạo: ${toneName}`,
+                    "Điều chỉnh nhiệt độ màu và hướng màu (tint) cho tone đã chọn",
+                    "Tối ưu độ tương phản, highlights/shadows và clarity để tạo mood"
                 ];
+                result.metrics = {
+                    recommendedTone: toneData.recommendedTone,
+                    toneName: toneName
+                };
             }
 
-        } else if (moduleId.startsWith('ai_beauty')) {
-            // Fallback for any other ai_beauty modules
-            result.adjustments = {
-                basic: { exposure: 5, contrast: 5, vibrance: 10 },
-                beauty: { skinValues: { smooth: 50, whiten: 20, even: 30 } }
-            };
-            result.summary = "AI Beauty adjustments applied.";
         } else {
              result.summary = `Module ${moduleId} executed successfully.`;
         }

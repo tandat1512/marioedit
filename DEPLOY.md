@@ -15,7 +15,7 @@ Hướng dẫn này giúp bạn deploy ứng dụng lên cloud để có link ch
 ### 1.2. Tạo Web Service
 1. Click **New +** → **Web Service**
 2. Connect GitHub repo của bạn
-3. Chọn repo: `tandat1512/marioeditai` (hoặc repo của bạn)
+3. Chọn repo: `tandat1512/MARIO-EDITER-AI` (hoặc repo của bạn)
 
 ### 1.3. Cấu hình Backend
 Điền thông tin sau:
@@ -53,7 +53,7 @@ ALLOWED_ORIGINS = (để trống, sẽ cập nhật sau khi có frontend URL)
 ### 2.2. Import Project
 1. Click **Add New...** → **Project**
 2. Import GitHub repo của bạn
-3. Chọn repo: `tandat1512/marioeditai`
+3. Chọn repo: `tandat1512/MARIO-EDITER-AI`
 
 ### 2.3. Cấu hình Frontend
 Vercel sẽ tự động detect Vite, nhưng kiểm tra:

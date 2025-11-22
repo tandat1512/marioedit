@@ -5,8 +5,9 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { TabType, HistogramData, TransformValues, BasicValues, EffectsValues, HistoryState, TextLayer, BeautyValues, FilterValues, CropData } from './types';
-import { processImageBasic, calculateAutoSettings, processImageTransform, processImageEffects, processImageBeauty, processImageFilters, calculateHistogram } from './utils/imageProcessor';
+import { processImageBasic, calculateAutoSettings, processImageTransform, processImageEffects, processImageFilters, calculateHistogram } from './utils/imageProcessor';
 import { runAiProModule, AIProResult, AIProAdjustments, AIPreviewMeta } from './utils/aiProClient';
+import { applyBeauty, checkBackendHealth } from './utils/beautyClient';
 
 type AIStatus = 'idle' | 'running' | 'done' | 'error';
 type AIPreviewState = { preview: string; mask?: string | null; meta?: AIPreviewMeta | null };
@@ -67,9 +68,9 @@ function App() {
     skinValues: { smooth: 0, whiten: 0, even: 0, korean: 0, texture: 50 },
     acneMode: { auto: false, manualPoints: [] },
     faceValues: { slim: 0, vline: 0, chinShrink: 0, forehead: 0, jaw: 0, noseSlim: 0, noseBridge: 0 },
-    eyeValues: { enlarge: 0, brightness: 0, darkCircle: 0, depth: 0 },
-    eyeMakeup: { lens: 'none' },
-    mouthValues: { smile: 0 },
+    eyeValues: { enlarge: 0, darkCircle: 0, depth: 0, eyelid: 0, brightness: 0 },
+    eyeMakeup: { eyeliner: false, lens: 'none' },
+    mouthValues: { smile: 0, volume: 0, heart: 0, teethWhiten: 0 },
     lipstick: 'none',
     hairValues: { smooth: 0, volume: 0, shine: 0 },
     hairColor: 'original'
@@ -310,9 +311,9 @@ function App() {
         skinValues: { smooth: 0, whiten: 0, even: 0, korean: 0, texture: 50 },
         acneMode: { auto: false, manualPoints: [] },
         faceValues: { slim: 0, vline: 0, chinShrink: 0, forehead: 0, jaw: 0, noseSlim: 0, noseBridge: 0 },
-        eyeValues: { enlarge: 0, brightness: 0, darkCircle: 0, depth: 0 },
-        eyeMakeup: { lens: 'none' },
-        mouthValues: { smile: 0 },
+        eyeValues: { enlarge: 0, darkCircle: 0, depth: 0, eyelid: 0, brightness: 0 },
+        eyeMakeup: { eyeliner: false, lens: 'none' },
+        mouthValues: { smile: 0, volume: 0, heart: 0, teethWhiten: 0 },
         lipstick: 'none',
         hairValues: { smooth: 0, volume: 0, shine: 0 },
         hairColor: 'original'
@@ -519,7 +520,7 @@ function App() {
           // Let's assume standard AI flow here: New Base.
           setTransformValues({ rotate: 0, rotateFree: 0, flipHorizontal: false, flipVertical: false, straighten: 0, aspectRatio: 'original', crop: null });
           setBasicValues({ exposure: 0, brightness: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0, temp: 0, tint: 0, vibrance: 0, saturation: 0, hue: 0, grayscale: 0, sharpen: 0, blur: 0, clarity: 0, texture: 0, dehaze: 0, denoise: 0 });
-          setBeautyValues({ skinMode: 'natural', faceMode: 'natural', skinValues: { smooth: 0, whiten: 0, even: 0, korean: 0, texture: 50 }, acneMode: { auto: false, manualPoints: [] }, faceValues: { slim: 0, vline: 0, chinShrink: 0, forehead: 0, jaw: 0, noseSlim: 0, noseBridge: 0 }, eyeValues: { enlarge: 0, brightness: 0, darkCircle: 0, depth: 0 }, eyeMakeup: { lens: 'none' }, mouthValues: { smile: 0 }, lipstick: 'none', hairValues: { smooth: 0, volume: 0, shine: 0 }, hairColor: 'original' });
+          setBeautyValues({ skinMode: 'natural', faceMode: 'natural', skinValues: { smooth: 0, whiten: 0, even: 0, korean: 0, texture: 50 }, acneMode: { auto: false, manualPoints: [] }, faceValues: { slim: 0, vline: 0, chinShrink: 0, forehead: 0, jaw: 0, noseSlim: 0, noseBridge: 0 }, eyeValues: { enlarge: 0, darkCircle: 0, depth: 0, eyelid: 0, brightness: 0 }, eyeMakeup: { eyeliner: false, lens: 'none' }, mouthValues: { smile: 0, volume: 0, heart: 0, teethWhiten: 0 }, lipstick: 'none', hairValues: { smooth: 0, volume: 0, shine: 0 }, hairColor: 'original' });
           setFilterValues({ selectedCategory: 'trending', selectedPreset: null, intensity: 70 });
           
           handleDismissAiPreview(moduleId);
@@ -573,14 +574,46 @@ function App() {
       processImageBasic(transformedImage, basicValues).then(setBasicProcessedImage);
   }, [transformedImage, basicValues]);
 
-  // 3. Beauty
+  // Backend availability state
+  const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
+  
+  // Check backend health on mount
+  useEffect(() => {
+      checkBackendHealth().then(setBackendAvailable);
+  }, []);
+
+  // 3. Beauty - Use backend API if available, fallback to client-side
   useEffect(() => {
       if (!basicProcessedImage) return;
-      const t = setTimeout(() => {
-          processImageBeauty(basicProcessedImage, beautyValues).then(setBeautyProcessedImage);
+      
+      const t = setTimeout(async () => {
+          try {
+              // Check if we should use backend (only if backend is confirmed available)
+              if (backendAvailable === true) {
+                  try {
+                      const result = await applyBeauty(basicProcessedImage, beautyValues);
+                      setBeautyProcessedImage(result.image);
+                      return;
+                  } catch (error) {
+                      console.warn('Backend API failed, falling back to client-side:', error);
+                      // Fallback to client-side if backend fails
+                      setBackendAvailable(false);
+                  }
+              }
+              
+              // Fallback to client-side processing
+              const { processImageBeauty } = await import('./utils/imageProcessor');
+              const result = await processImageBeauty(basicProcessedImage, beautyValues);
+              setBeautyProcessedImage(result);
+          } catch (error) {
+              console.error('Beauty processing failed:', error);
+              // On error, just use the basic processed image
+              setBeautyProcessedImage(basicProcessedImage);
+          }
       }, 100);
+      
       return () => clearTimeout(t);
-  }, [basicProcessedImage, beautyValues]);
+  }, [basicProcessedImage, beautyValues, backendAvailable]);
   
   // 4. Filters
   useEffect(() => {
@@ -611,7 +644,7 @@ function App() {
 
   return (
     <div className="flex h-screen flex-col bg-[#09090b] text-white overflow-hidden">
-      <Header filename={filename} hasImage={!!originalImage} displayImage={displayImage} />
+      <Header filename={filename} hasImage={!!originalImage} />
       
       <div className="flex flex-1 overflow-hidden">
         <LeftSidebar 

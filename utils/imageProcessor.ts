@@ -1,8 +1,6 @@
 
 import { TransformValues, BasicValues, EffectsValues, BeautyValues, FilterValues, Point, CropData, HistogramData } from '../types';
 
-const BEAUTY_BACKEND_URL = import.meta.env.VITE_BEAUTY_BACKEND || 'http://127.0.0.1:8000';
-
 /**
  * CLIENT-SIDE IMAGE PROCESSOR
  * High-performance canvas-based processing simulating OpenCV/NumPy
@@ -781,79 +779,9 @@ const applyLiquify = (ctx: CanvasRenderingContext2D, w: number, h: number, warps
 };
 
 /**
- * BEAUTY PROCESSOR (Backend API Integration)
- * Uses backend API for advanced beauty processing with MediaPipe face detection
+ * BEAUTY PROCESSOR (Advanced Skin Backend Simulation)
  */
-/**
- * Convert BeautyValues to backend-compatible format
- * Backend model only accepts specific fields (matches BeautyConfig in backend/models.py)
- */
-const formatBeautyConfigForBackend = (values: BeautyValues) => {
-    return {
-        skinMode: values.skinMode,
-        faceMode: values.faceMode,
-        skinValues: values.skinValues,
-        acneMode: {
-            auto: values.acneMode.auto,
-            manualPoints: values.acneMode.manualPoints.map(p => ({
-                x: p.x,
-                y: p.y
-            }))
-        },
-        faceValues: values.faceValues,
-        eyeValues: values.eyeValues,
-        eyeMakeup: values.eyeMakeup,
-        mouthValues: {
-            smile: values.mouthValues.smile
-            // Backend only accepts 'smile', ignore volume, heart, teethWhiten
-        },
-        lipstick: values.lipstick,
-        hairValues: values.hairValues,
-        hairColor: values.hairColor
-    };
-};
-
-export const processImageBeauty = async (
-    imgSource: string,
-    values: BeautyValues
-): Promise<string> => {
-    try {
-        const response = await fetch(imgSource);
-        const blob = await response.blob();
-        const formData = new FormData();
-        formData.append('image', blob, `beauty-${Date.now()}.jpg`);
-        
-        // Format values to match backend BeautyConfig model exactly
-        const backendConfig = formatBeautyConfigForBackend(values);
-        formData.append('beautyConfig', JSON.stringify(backendConfig));
-
-        const apiResponse = await fetch(`${BEAUTY_BACKEND_URL}/api/beauty/apply`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!apiResponse.ok) {
-            const errorText = await apiResponse.text();
-            throw new Error(`Beauty backend error (${apiResponse.status}): ${errorText}`);
-        }
-
-        const payload = await apiResponse.json();
-        if (!payload?.image) {
-            throw new Error('Beauty backend response missing image data');
-        }
-        return payload.image;
-    } catch (error) {
-        console.error('processImageBeauty failed, fallback to client-side processing', error);
-        // Fallback to client-side processing if backend fails
-        return processImageBeautyClientSide(imgSource, values);
-    }
-};
-
-/**
- * CLIENT-SIDE BEAUTY PROCESSOR (Fallback)
- * Used when backend is unavailable
- */
-const processImageBeautyClientSide = (
+export const processImageBeauty = (
     imgSource: string,
     values: BeautyValues
 ): Promise<string> => {
@@ -1083,10 +1011,31 @@ const processImageBeautyClientSide = (
                     let curCb = 128 - 0.168736*r - 0.331264*g + 0.5*b;
                     let curCr = 128 + 0.5*r - 0.418688*g - 0.081312*b;
 
-                    // C. WHITENING
+                    // C. WHITENING - Cải thiện với Adaptive Brightening
                     if (whiten > 0) {
-                        const boost = Math.log10(curY + 1) * (whitenStr * 40); 
-                        curY = Math.min(255, curY + boost);
+                        // Adaptive brightening: Vùng tối được sáng hóa nhiều hơn
+                        const lumaNorm = curY / 255.0;
+                        
+                        // S-curve để tăng độ sáng tự nhiên
+                        // Vùng tối-trung bình được boost nhiều hơn, vùng sáng ít hơn
+                        const boostFactor = Math.pow(lumaNorm, 0.7) * (1.0 + whitenStr * 0.6);
+                        const adaptiveBoost = (255.0 - curY) * boostFactor * whitenStr * 0.45;
+                        
+                        // Kết hợp với logarithmic boost để tự nhiên hơn
+                        const logBoost = Math.log10(curY + 1) * (whitenStr * 25);
+                        
+                        curY = Math.min(255, curY + adaptiveBoost + logBoost);
+                        
+                        // Điều chỉnh sắc độ để da trông tự nhiên hơn
+                        if (whitenStr > 0.3) {
+                            // Giảm đỏ nhẹ (giảm Cr)
+                            const crAdjust = whitenStr * 8.0 * ((curCr - 128) / 128.0);
+                            curCr = Math.max(0, Math.min(255, curCr - crAdjust));
+                            
+                            // Tăng vàng nhẹ (tăng Cb)
+                            const cbAdjust = whitenStr * 4.0 * (1.0 - (curCb - 128) / 128.0);
+                            curCb = Math.max(0, Math.min(255, curCb + cbAdjust));
+                        }
                     }
 
                     // D. EVEN TONE

@@ -380,17 +380,17 @@ const AI_SECTIONS: AISection[] = [
             {
                 id: 'ai_beauty_full',
                 title: 'Tự chỉnh toàn diện',
-                description: 'AI phân tích và tự động cải thiện toàn bộ: ánh sáng, màu sắc, độ nét, làm đẹp da & mắt. Phù hợp mọi loại ảnh.'
+                description: 'Chuyên nghiệp: Cân bằng ánh sáng, màu sắc, độ nét cho TOÀN BỘ ẢNH. Phù hợp: Phong cảnh, sản phẩm, kiến trúc, mọi loại ảnh.'
             },
             {
                 id: 'ai_beauty_portrait',
                 title: 'Tối ưu chân dung',
-                description: 'Chuyên sâu cho ảnh chân dung: làm mịn da, tăng sáng mắt, giảm quầng thâm, tối ưu ánh sáng chuyên nghiệp.'
+                description: 'Chuyên biệt: Chỉ làm đẹp DA và ánh sáng KHUÔN MẶT. Không điều chỉnh mắt. Dành riêng cho ảnh chân dung.'
             },
             {
                 id: 'ai_beauty_tone',
                 title: 'AI Smart Tone',
-                description: 'Gợi ý và áp dụng tone màu phù hợp nhất: warm/cool, vibrant/muted. Tập trung vào màu sắc và mood.'
+                description: 'Sáng tạo: Phân tích và tạo phong cách màu sắc chuyên nghiệp (warm/cool/cinematic/vintage/moody...). Tạo mood và style nghệ thuật.'
             }
         ]
     },
@@ -549,6 +549,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const activeAIMetricLabel = useMemo(() => {
       if (!activeAIInsight?.metrics) return '';
       const metrics = activeAIInsight.metrics as Record<string, unknown>;
+      // For AI Smart Tone, show the recommended tone name
+      if (metrics.toneName) {
+          return `Tone: ${metrics.toneName}`;
+      }
+      // For other modules
       const candidate = metrics.expectedGain ?? metrics.expected_gain ?? metrics.primaryModel;
       return typeof candidate === 'string' ? candidate : '';
   }, [activeAIInsight]);
@@ -1454,7 +1459,7 @@ const deriveSceneErrorMessage = (error: unknown) => {
                                     <p className="text-[11px] text-gray-400">{activeAIInsight.summary}</p>
                                     {!!activeAIInsight.steps?.length && (
                                         <ul className="list-disc list-inside text-[11px] text-gray-500 space-y-1">
-                                            {activeAIInsight.steps.map((step, index) => (
+                                            {activeAIInsight.steps.slice(0, 3).map((step, index) => (
                                                 <li key={index}>{step}</li>
                                             ))}
                                         </ul>
