@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import List
 
@@ -19,6 +20,14 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Allow environment variable to override allowed_origins
+        # Format: "https://domain1.com,https://domain2.com"
+        env_origins = os.getenv("ALLOWED_ORIGINS")
+        if env_origins:
+            self.allowed_origins.extend([origin.strip() for origin in env_origins.split(",") if origin.strip()])
 
 
 @lru_cache()
