@@ -9,9 +9,9 @@ import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from .beauty_pipeline import BeautyPipeline
-from .config import get_settings
-from .models import BeautyConfig, BeautyResponse, FaceAnalysisResponse, SkinBrightenResponse
+from beauty_pipeline import BeautyPipeline
+from config import get_settings
+from models import BeautyConfig, BeautyResponse, FaceAnalysisResponse, SkinBrightenResponse
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ async def brighten_skin(
     img = _load_image(image)
     
     # Tạo config chỉ với whiten
-    from .models import SkinValues, BeautyConfig
+    from models import SkinValues, BeautyConfig
     skin_values = SkinValues(whiten=whiten)
     config = BeautyConfig(skinValues=skin_values)
     
